@@ -170,7 +170,9 @@ func (r actionsRepo) UpdateAction(_ context.Context, a *store.Action) error {
 			}
 			return pins, nil
 		},
-		func(refs []store.ModuleRef) ([]store.ModuleRef, error) { return r.s.resolveModuleRefs(c.TenantID, refs) })
+		func(refs []store.ModuleRef) ([]store.ModuleRef, error) {
+			return r.s.resolveModuleRefs(c.TenantID, refs)
+		})
 	if err != nil {
 		return err
 	}

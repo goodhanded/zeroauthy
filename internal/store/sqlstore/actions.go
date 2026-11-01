@@ -196,7 +196,9 @@ func (r actionsRepo) UpdateAction(ctx context.Context, a *store.Action) error {
 				}
 				return pins, rows.Err()
 			},
-			func(refs []store.ModuleRef) ([]store.ModuleRef, error) { return repo.resolveModuleRefs(ctx, c.TenantID, refs) })
+			func(refs []store.ModuleRef) ([]store.ModuleRef, error) {
+				return repo.resolveModuleRefs(ctx, c.TenantID, refs)
+			})
 		if err != nil {
 			return err
 		}
