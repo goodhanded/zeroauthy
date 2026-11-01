@@ -59,7 +59,7 @@ test('an operator manages a database connection and its users', async ({ page })
   await page.fill('#conn-name', NAME);
   await page.getByRole('button', { name: 'Create connection' }).click();
   await page.waitForURL(/\/admin\/t\/e2e\/connections\/con_[A-Za-z0-9]{16}$/);
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText(NAME);
+  await expect(page.getByRole('dialog', { name: NAME, exact: true })).toBeVisible();
   const connURL = page.url();
 
   // 3. Enable an application on it.

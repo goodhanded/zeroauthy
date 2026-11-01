@@ -98,7 +98,7 @@ test('an operator manages APIs, machine-to-machine access and operators', async 
   await page.fill('#api-identifier', IDENTIFIER);
   await page.getByRole('button', { name: 'Create API' }).click();
   await page.waitForURL(/\/admin\/t\/e2e\/apis\/[0-9a-f]{24}$/);
-  await expect(page.getByRole('heading', { level: 1 })).toContainText('Console API');
+  await expect(page.getByRole('dialog', { name: 'Console API' })).toBeVisible();
   const apiURL = page.url();
   await page.getByRole('tab', { name: 'Permissions' }).click();
   for (const [value, description] of [['read:items', 'Read items'], ['write:items', 'Write items']]) {
@@ -109,7 +109,10 @@ test('an operator manages APIs, machine-to-machine access and operators', async 
   await page.getByRole('button', { name: 'Save permissions' }).click();
   await expect(page.getByRole('status').filter({ hasText: 'Saved' })).toBeVisible();
 
-  // 3. Create a machine-to-machine application.
+  // 3. Create a machine-to-machine application. The API is a modal over its
+  //    list; close it before using the sidebar.
+  await page.getByRole('dialog', { name: 'Console API' }).getByRole('button', { name: 'Close' }).click();
+  await page.waitForURL(/\/admin\/t\/e2e\/apis$/);
   await nav.getByRole('link', { name: 'Applications' }).click();
   await page.getByRole('link', { name: 'Create application' }).click();
   await page.fill('#app-name', 'Console M2M');
@@ -117,7 +120,7 @@ test('an operator manages APIs, machine-to-machine access and operators', async 
   await page.getByRole('button', { name: 'Create application' }).click();
   await page.waitForURL(/\/admin\/t\/e2e\/applications\/[A-Za-z0-9]{32}$/);
   const appURL = page.url();
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Console M2M');
+  await expect(page.getByRole('dialog', { name: 'Console M2M', exact: true })).toBeVisible();
 
   // 4. Authorize it for the API with one permission.
   await page.getByRole('tab', { name: 'APIs', exact: true }).click();
@@ -152,9 +155,9 @@ test('an operator manages APIs, machine-to-machine access and operators', async 
   await expect(page.getByRole('button', { name: 'Remove write:items' })).toHaveCount(0);
   await page.getByRole('button', { name: 'Remove read:items' }).click();
   await page.getByRole('button', { name: 'Save permissions' }).click();
-  const confirm = page.getByRole('dialog');
+  const confirm = page.getByRole('dialog', { name: 'Remove permissions in use?' });
   await expect(confirm).toContainText('read:items');
-  await confirm.getByRole('button').first().click();
+  await confirm.getByRole('button', { name: 'Remove and save' }).click();
   await expect(page.getByTestId('scopes-empty')).toBeVisible();
   const emptied = await runCurl(curl);
   expect(emptied.status).toBe(200);
@@ -175,7 +178,9 @@ test('an operator manages APIs, machine-to-machine access and operators', async 
   await page.getByRole('tab', { name: 'APIs', exact: true }).click();
   await expect(page.getByTestId('grant-' + IDENTIFIER)).toHaveCount(0);
 
-  // 8. Invite an operator on the system tenant, then remove them.
+  // 8. Invite an operator on the system tenant, then remove them. The
+  //    application is a modal; close it before using the header.
+  await page.getByRole('dialog', { name: 'Console M2M', exact: true }).getByRole('button', { name: 'Close' }).click();
   await page.getByRole('button', { name: 'Switch tenant' }).click();
   await page.getByRole('menuitem', { name: /^system/ }).click();
   await nav.getByRole('link', { name: 'Operators' }).click();

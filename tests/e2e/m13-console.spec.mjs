@@ -46,7 +46,7 @@ test('an operator manages applications in the console', async ({ page }) => {
   await page.getByRole('radio', { name: /Regular web app/ }).check();
   await page.getByRole('button', { name: 'Create application' }).click();
   await page.waitForURL(/\/admin\/t\/e2e\/applications\/[A-Za-z0-9]{32}$/);
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Console app');
+  await expect(page.getByRole('dialog', { name: 'Console app', exact: true })).toBeVisible();
   const detailURL = page.url();
   // A new application opens on its Quick start; the settings are a tab.
   await page.getByRole('tab', { name: 'Settings' }).click();
@@ -76,7 +76,7 @@ test('an operator manages applications in the console', async ({ page }) => {
   //    and signs in again silently.
   await page.reload();
   await page.waitForURL(detailURL);
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Console app');
+  await expect(page.getByRole('dialog', { name: 'Console app', exact: true })).toBeVisible();
   await page.getByRole('tab', { name: 'Settings' }).click();
   await expect(page.locator('#app-callbacks')).toHaveValue('https://console-app.e2e.test/callback');
 

@@ -71,7 +71,9 @@ test('an operator manages a user in the console', async ({ page, browser }) => {
   });
   const nav = page.getByRole('navigation', { name: 'Sections' });
   const saved = page.getByRole('status').filter({ hasText: 'Saved' });
-  const dialog = page.getByRole('dialog');
+  // Confirmations open over the user's own modal (titled with the email):
+  // this is whichever confirmation is open, and none once it closes.
+  const dialog = page.getByRole('dialog').filter({ hasNot: page.getByRole('heading', { name: USER, exact: true }) });
 
   // 1. Set a password and sign in.
   await page.goto(setup);
@@ -97,15 +99,16 @@ test('an operator manages a user in the console', async ({ page, browser }) => {
   const since = Date.now() - 1000;
   await page.getByRole('button', { name: 'Create user' }).click();
   await page.waitForURL(/\/admin\/t\/e2e\/users\/auth0(%7C|\|)[0-9a-f]{24}$/);
-  await expect(page.getByRole('heading', { level: 1 })).toContainText(USER);
+  await expect(page.getByRole('dialog', { name: USER })).toBeVisible();
   const userURL = page.url();
   await expect(page.getByText('(not verified)')).toBeVisible();
   // The verification email was written; its link is a single-use page.
   const emailed = await mailLink(USER, /https:\/\/localhost:8443\/u\/email-verification\?ticket=[A-Za-z0-9_-]+/, since);
   expect(emailed).toContain('/u/email-verification?ticket=');
 
-  // 3. Find the user by a search query.
-  await page.getByRole('link', { name: 'All users' }).click();
+  // 3. Find the user by a search query. Closing the user's modal returns to
+  //    the list.
+  await page.getByRole('dialog', { name: USER }).getByRole('button', { name: 'Close' }).click();
   await page.waitForURL(/\/admin\/t\/e2e\/users$/);
   await page.fill('#users-search', `email:"${USER}"`);
   await page.getByRole('button', { name: 'Search' }).click();
@@ -130,7 +133,7 @@ test('an operator manages a user in the console', async ({ page, browser }) => {
   await page.getByRole('tab', { name: 'Raw JSON' }).click();
   await expect(page.locator('body')).toContainText('"plan": "pro"');
   await expect(page.locator('body')).not.toContainText('password_hash');
-  await page.getByRole('link', { name: 'All users' }).click();
+  await page.getByRole('dialog', { name: USER }).getByRole('button', { name: 'Close' }).click();
   await page.fill('#users-search', `app_metadata.plan:pro AND email:"${USER}"`);
   await page.getByRole('button', { name: 'Search' }).click();
   await expect(page.getByRole('link', { name: USER })).toBeVisible();
@@ -143,7 +146,7 @@ test('an operator manages a user in the console', async ({ page, browser }) => {
   await page.getByRole('button', { name: 'Block', exact: true }).click();
   await dialog.getByRole('button', { name: 'Block user' }).click();
   await expect(dialog).toHaveCount(0);
-  await expect(page.getByRole('heading', { level: 1 })).toContainText('Blocked');
+  await expect(page.getByRole('dialog', { name: USER }).getByText('Blocked', { exact: true })).toBeVisible();
   const blockedCtx = await browser.newContext();
   const blockedPage = await blockedCtx.newPage();
   await signIn(blockedPage, FIRST);
