@@ -7,7 +7,6 @@ import (
 	"errors"
 	"github.com/zeroauthy/zeroauthy/internal/keys"
 	"net"
-	"path/filepath"
 	"testing"
 
 	"google.golang.org/grpc"
@@ -59,7 +58,7 @@ func inProcessSQLite(t *testing.T) *Client { return serve(t, openSQLite(t)) }
 func openSQLite(t *testing.T) *sqlstore.Store {
 	t.Helper()
 	ctx := context.Background()
-	st, err := sqlstore.Open(ctx, "sqlite://"+filepath.Join(t.TempDir(), "z.db"))
+	st, err := sqlstore.Open(ctx, migratedSQLiteDSN(t))
 	if err != nil {
 		t.Fatal(err)
 	}
