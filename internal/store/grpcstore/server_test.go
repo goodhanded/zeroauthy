@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"math/rand/v2"
-	"path/filepath"
 	"reflect"
 	"sync"
 	"testing"
@@ -177,7 +176,7 @@ func testStores(t *testing.T) map[string]func(t *testing.T) store.Store {
 		"memory": func(*testing.T) store.Store { return memory.New() },
 		"sqlite": func(t *testing.T) store.Store {
 			ctx := context.Background()
-			st, err := sqlstore.Open(ctx, "sqlite://"+filepath.Join(t.TempDir(), "z.db"))
+			st, err := sqlstore.Open(ctx, migratedSQLiteDSN(t))
 			if err != nil {
 				t.Fatal(err)
 			}

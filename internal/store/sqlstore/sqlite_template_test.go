@@ -2,78 +2,40 @@ package sqlstore
 
 import (
 	"context"
-	"fmt"
 	"os"
-	"path/filepath"
-	"sync"
+	"strings"
 	"testing"
+
+	"github.com/zeroauthy/zeroauthy/internal/testutil/sqlitetemplate"
 )
 
-// sqliteTemplate is one migrated SQLite database per test process, copied for
-// every test that wants a fresh migrated store. Under -race, running the
-// migrations on modernc's pure-Go SQLite costs about 1.7 s per database;
-// copying the file costs milliseconds. grpcstore keeps a copy of this helper,
-// because its tests cannot share one with this package's in-package tests
-// without an import cycle.
-var sqliteTemplate struct {
-	once sync.Once
-	dir  string
-	path string
-	err  error
-}
-
-// migratedSQLiteDSN returns the DSN of a fresh, migrated SQLite database for
-// one test: a copy of the template in the test's own temporary directory.
-func migratedSQLiteDSN(t *testing.T) string {
-	t.Helper()
-	sqliteTemplate.once.Do(func() {
-		sqliteTemplate.dir, sqliteTemplate.path, sqliteTemplate.err = buildSQLiteTemplate()
-	})
-	if sqliteTemplate.err != nil {
-		t.Fatal(sqliteTemplate.err)
-	}
-	body, err := os.ReadFile(sqliteTemplate.path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	dst := filepath.Join(t.TempDir(), "z.db")
-	if err := os.WriteFile(dst, body, 0o600); err != nil {
-		t.Fatal(err)
-	}
-	return "sqlite://" + dst
-}
-
-func buildSQLiteTemplate() (dir, path string, err error) {
+// sqliteTemplate is the migrated SQLite database this package's tests copy
+// instead of migrating their own (see internal/testutil/sqlitetemplate).
+var sqliteTemplate = sqlitetemplate.New(func(path string) error {
 	ctx := context.Background()
-	if dir, err = os.MkdirTemp("", "zeroauthy-sqlite-template-"); err != nil {
-		return "", "", err
-	}
-	path = filepath.Join(dir, "template.db")
 	s, err := Open(ctx, "sqlite://"+path)
 	if err != nil {
-		return dir, "", err
+		return err
 	}
-	if err = s.Migrate(ctx); err != nil {
+	if err := s.Migrate(ctx); err != nil {
 		_ = s.Close()
-		return dir, "", err
+		return err
 	}
-	if err = s.Close(); err != nil {
-		return dir, "", err
-	}
-	// The store runs in WAL mode. Closing its last connection checkpoints the
-	// log into the main file, so the main file alone is then the whole
-	// database. A log with content left behind would make a copy of the main
-	// file a partial one, so refuse it rather than copy it.
-	if fi, statErr := os.Stat(path + "-wal"); statErr == nil && fi.Size() > 0 {
-		return dir, "", fmt.Errorf("sqlite template: %s-wal still holds %d bytes after close", path, fi.Size())
-	}
-	return dir, path, nil
+	return s.Close()
+})
+
+// migrated fills the SQLite database a sqlite:// DSN names with a copy of
+// the migrated template and returns the DSN unchanged, so any parameters
+// dsnsUnderTest puts on it still apply.
+func migrated(t *testing.T, dsn string) string {
+	t.Helper()
+	path, _, _ := strings.Cut(strings.TrimPrefix(dsn, "sqlite://"), "?")
+	sqliteTemplate.CopyTo(t, path)
+	return dsn
 }
 
 func TestMain(m *testing.M) {
 	code := m.Run()
-	if sqliteTemplate.dir != "" {
-		_ = os.RemoveAll(sqliteTemplate.dir)
-	}
+	sqliteTemplate.Remove()
 	os.Exit(code)
 }
