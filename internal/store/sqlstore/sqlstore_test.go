@@ -47,7 +47,7 @@ func dialectsUnderTest(t *testing.T) map[string]func(t *testing.T) *Store {
 	out := map[string]func(t *testing.T) *Store{}
 	for name, mk := range dsnsUnderTest(t) {
 		if name == "sqlite" {
-			out[name] = func(t *testing.T) *Store { return mustOpen(t, migratedSQLiteDSN(t)) }
+			out[name] = func(t *testing.T) *Store { return mustOpen(t, migrated(t, mk(t))) }
 			continue
 		}
 		out[name] = func(t *testing.T) *Store { return mustOpen(t, mk(t)) }
