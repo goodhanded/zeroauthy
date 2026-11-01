@@ -47,7 +47,10 @@ jobs:
   # floor gets its own run of the packages that use the runners, pinned
   # exactly. It is pinned to 22.20.0, not 22.13.0: sandboxed npm install
   # (Actions dependency builds) fails on every 22.x before 22.20.0, so the
-  # declared floor does not hold for those builds yet.
+  # declared floor does not hold for those builds yet. The package list is
+  # kept by hand (internal/federation/script needs 25, so it cannot be derived
+  # from noderunner's dependents): a new package that runs scripts through
+  # noderunner belongs on it.
   node-floor:
     runs-on: ubuntu-latest
     steps:
