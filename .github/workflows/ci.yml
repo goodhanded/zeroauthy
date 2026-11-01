@@ -15,9 +15,11 @@ jobs:
       - name: gofmt
         run: test -z "$(gofmt -l .)" || (gofmt -l . && exit 1)
       - run: go vet ./...
+      # internal/federation/script runs profile scripts, which need Node 25+;
+      # ZA_REQUIRE_NODE makes a missing runtime fail rather than skip.
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 25
       - run: go test -race ./...
         env:
           ZA_REQUIRE_NODE: "1"
