@@ -21,6 +21,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 25
+      # go test's 10-minute default is per package binary, and sqlstore and
+      # grpcstore exceed it under -race. 50m is the budget the Plan 29 record
+      # runs this suite with locally (grpcstore 1160 s there).
       - run: go test -race -timeout 50m ./...
         env:
           ZA_REQUIRE_NODE: "1"
@@ -117,6 +120,9 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+      # Three dialects in one package binary. Measured here, 30m ran out with
+      # SQLite and PostgreSQL done and MySQL 7 minutes in; the service
+      # containers cannot take test-sql.sh's tmpfs and fsync=off settings.
       - run: go test -race -count=1 -timeout 60m ./internal/store/sqlstore/...
         env:
           ZA_TEST_POSTGRES_DSN: postgres://postgres:zeroauthy@127.0.0.1:55432/postgres?sslmode=disable
