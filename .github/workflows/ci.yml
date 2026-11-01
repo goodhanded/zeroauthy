@@ -17,7 +17,9 @@ jobs:
       - run: go vet ./...
       # internal/federation/script's tests fail without Node 25+ (profile
       # scripts). ZA_REQUIRE_NODE is separate: it makes the customdb,
-      # noderunner and actions tests fail rather than skip without Node.
+      # noderunner, actions and app tests fail rather than skip without Node.
+      # 25 is deliberate: the lowest major with the network denial the
+      # profile scripts rely on ("Node 25 or later"), not the newest.
       - uses: actions/setup-node@v4
         with:
           node-version: 25
@@ -42,10 +44,11 @@ jobs:
       - run: make console
       - name: the committed console build and API types are up to date
         run: git diff --exit-code -- console/dist console/src/api/schema.d.ts
-  # The script runners support Node 22.13+, where the sandbox takes another
-  # path (no --allow-net, so the network stays open). The test job runs Node
-  # 25 for the profile scripts, so the supported floor gets its own run of
-  # the packages that use it.
+  # The script runners support Node 22.13+ (noderunner.CheckNodeVersion),
+  # where the sandbox takes another path (no --allow-net, so the network
+  # stays open). The test job runs Node 25 for the profile scripts, so the
+  # floor itself, pinned exactly, gets its own run of the packages that use
+  # the runners.
   node-floor:
     runs-on: ubuntu-latest
     steps:
@@ -55,8 +58,8 @@ jobs:
           go-version-file: go.mod
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
-      - run: go test -race ./internal/customdb/... ./internal/noderunner/... ./internal/actions/...
+          node-version: 22.13.0
+      - run: go test -race ./internal/customdb/... ./internal/noderunner/... ./internal/actions/... ./internal/app/...
         env:
           ZA_REQUIRE_NODE: "1"
   e2e:
