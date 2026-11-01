@@ -40,10 +40,16 @@ func dsnsUnderTest(t *testing.T) map[string]func(t *testing.T) string {
 }
 
 // dialectsUnderTest returns a constructor per dialect that yields a fresh,
-// empty, migrated database for one test, dropped at cleanup.
+// empty, migrated database for one test, dropped at cleanup. SQLite starts
+// from a copy of a template migrated once per process (sqlite_template_test.go);
+// Migrate still runs on the copy, as a no-op that proves it is current.
 func dialectsUnderTest(t *testing.T) map[string]func(t *testing.T) *Store {
 	out := map[string]func(t *testing.T) *Store{}
 	for name, mk := range dsnsUnderTest(t) {
+		if name == "sqlite" {
+			out[name] = func(t *testing.T) *Store { return mustOpen(t, migrated(t, mk(t))) }
+			continue
+		}
 		out[name] = func(t *testing.T) *Store { return mustOpen(t, mk(t)) }
 	}
 	return out
