@@ -15,9 +15,14 @@ jobs:
       - name: gofmt
         run: test -z "$(gofmt -l .)" || (gofmt -l . && exit 1)
       - run: go vet ./...
+      # internal/federation/script's tests fail without Node 25+ (profile
+      # scripts). ZA_REQUIRE_NODE is separate: it makes the customdb,
+      # noderunner, actions and app tests fail rather than skip without Node.
+      # 25 is deliberate: the lowest major with the network denial the
+      # profile scripts rely on ("Node 25 or later"), not the newest.
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 25
       - run: go test -race ./...
         env:
           ZA_REQUIRE_NODE: "1"
@@ -36,7 +41,17 @@ jobs:
       - run: make console
       - name: the committed console build and API types are up to date
         run: git diff --exit-code -- console/dist console/src/api/schema.d.ts
-  e2e:
+  # The script runners accept Node 22.13+ (noderunner.CheckNodeVersion), where
+  # the sandbox takes another path (no --allow-net, so the network stays
+  # open). The test job runs Node 25 for the profile scripts, so the Node 22
+  # floor gets its own run of the packages that use the runners, pinned
+  # exactly. It is pinned to 22.20.0, not 22.13.0: sandboxed npm install
+  # (Actions dependency builds) fails on every 22.x before 22.20.0, so the
+  # declared floor does not hold for those builds yet. The package list is
+  # kept by hand (internal/federation/script needs 25, so it cannot be derived
+  # from noderunner's dependents): a new package that runs scripts through
+  # noderunner belongs on it.
+  node-floor:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -45,7 +60,24 @@ jobs:
           go-version-file: go.mod
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 22.20.0
+      - run: go test -race ./internal/customdb/... ./internal/noderunner/... ./internal/actions/... ./internal/app/...
+        env:
+          ZA_REQUIRE_NODE: "1"
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      # OAuth and social profile scripts need Node 25+ (permission-enforced
+      # network denial); e2e-deploy, e2e-social and e2e-email-accounts fail
+      # rather than skip without it. One version for the whole job, so step
+      # order never decides which lanes get it.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 25
           cache: npm
           cache-dependency-path: tests/e2e/package-lock.json
       - run: npm ci --no-audit --no-fund
@@ -60,11 +92,6 @@ jobs:
       - run: make e2e-branding
       - run: make e2e-email
       - run: make e2e
-      # Social profile scripts need Node 25+ (permission-enforced network
-      # denial); the lane fails rather than skips without it.
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 25
       - run: make e2e-social
       - run: make e2e-email-accounts
       - run: make e2e-rbac
