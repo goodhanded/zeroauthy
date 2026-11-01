@@ -15,8 +15,9 @@ jobs:
       - name: gofmt
         run: test -z "$(gofmt -l .)" || (gofmt -l . && exit 1)
       - run: go vet ./...
-      # internal/federation/script runs profile scripts, which need Node 25+;
-      # ZA_REQUIRE_NODE makes a missing runtime fail rather than skip.
+      # internal/federation/script's tests fail without Node 25+ (profile
+      # scripts). ZA_REQUIRE_NODE is separate: it makes the customdb,
+      # noderunner and actions tests fail rather than skip without Node.
       - uses: actions/setup-node@v4
         with:
           node-version: 25
@@ -45,9 +46,13 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+      # OAuth and social profile scripts need Node 25+ (permission-enforced
+      # network denial); e2e-deploy, e2e-social and e2e-email-accounts fail
+      # rather than skip without it. One version for the whole job, so step
+      # order never decides which lanes get it.
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 25
           cache: npm
           cache-dependency-path: tests/e2e/package-lock.json
       - run: npm ci --no-audit --no-fund
@@ -57,12 +62,6 @@ jobs:
       - name: local ACME fixture runtime
         run: sudo apt-get update && sudo apt-get install -y podman podman-compose
       - run: make e2e-domains
-      # OAuth and social profile scripts need Node 25+ (permission-enforced
-      # network denial); e2e-deploy, e2e-social and e2e-email-accounts fail
-      # rather than skip without it.
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 25
       - run: make e2e-deploy
       - run: make e2e-signing
       - run: make e2e-branding
