@@ -46,11 +46,13 @@ jobs:
       - run: make console
       - name: the committed console build and API types are up to date
         run: git diff --exit-code -- console/dist console/src/api/schema.d.ts
-  # The script runners support Node 22.13+ (noderunner.CheckNodeVersion),
-  # where the sandbox takes another path (no --allow-net, so the network
-  # stays open). The test job runs Node 25 for the profile scripts, so the
-  # floor itself, pinned exactly, gets its own run of the packages that use
-  # the runners.
+  # The script runners accept Node 22.13+ (noderunner.CheckNodeVersion), where
+  # the sandbox takes another path (no --allow-net, so the network stays
+  # open). The test job runs Node 25 for the profile scripts, so the Node 22
+  # floor gets its own run of the packages that use the runners, pinned
+  # exactly. It is pinned to 22.20.0, not 22.13.0: sandboxed npm install
+  # (Actions dependency builds) fails on every 22.x before 22.20.0, so the
+  # declared floor does not hold for those builds yet.
   node-floor:
     runs-on: ubuntu-latest
     steps:
@@ -60,7 +62,7 @@ jobs:
           go-version-file: go.mod
       - uses: actions/setup-node@v4
         with:
-          node-version: 22.13.0
+          node-version: 22.20.0
       - run: go test -race ./internal/customdb/... ./internal/noderunner/... ./internal/actions/... ./internal/app/...
         env:
           ZA_REQUIRE_NODE: "1"
