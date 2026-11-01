@@ -72,7 +72,10 @@ test('an operator manages a user in the console', async ({ page, browser }) => {
   const nav = page.getByRole('navigation', { name: 'Sections' });
   const saved = page.getByRole('status').filter({ hasText: 'Saved' });
   // Confirmations open over the user's own modal (titled with the email):
-  // this is whichever confirmation is open, and none once it closes.
+  // this is whichever confirmation is open, and none once it closes. Every
+  // use is after the modal has loaded, while its title is the email. A
+  // Cancel button would not tell them apart: the metadata review in the
+  // user's modal has one too.
   const dialog = page.getByRole('dialog').filter({ hasNot: page.getByRole('heading', { name: USER, exact: true }) });
 
   // 1. Set a password and sign in.

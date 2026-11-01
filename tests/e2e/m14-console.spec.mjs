@@ -181,6 +181,7 @@ test('an operator manages APIs, machine-to-machine access and operators', async 
   // 8. Invite an operator on the system tenant, then remove them. The
   //    application is a modal; close it before using the header.
   await page.getByRole('dialog', { name: 'Console M2M', exact: true }).getByRole('button', { name: 'Close' }).click();
+  await page.waitForURL(/\/admin\/t\/e2e\/applications$/);
   await page.getByRole('button', { name: 'Switch tenant' }).click();
   await page.getByRole('menuitem', { name: /^system/ }).click();
   await nav.getByRole('link', { name: 'Operators' }).click();
