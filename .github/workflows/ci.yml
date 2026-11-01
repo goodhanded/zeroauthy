@@ -39,6 +39,23 @@ jobs:
       - run: make console
       - name: the committed console build and API types are up to date
         run: git diff --exit-code -- console/dist console/src/api/schema.d.ts
+  # The script runners support Node 22.13+, where the sandbox takes another
+  # path (no --allow-net, so the network stays open). The test job runs Node
+  # 25 for the profile scripts, so the supported floor gets its own run of
+  # the packages that use it.
+  node-floor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: go test -race ./internal/customdb/... ./internal/noderunner/... ./internal/actions/...
+        env:
+          ZA_REQUIRE_NODE: "1"
   e2e:
     runs-on: ubuntu-latest
     steps:
