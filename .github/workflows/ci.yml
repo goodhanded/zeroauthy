@@ -23,7 +23,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 25
-      - run: go test -race ./...
+      # go test's 10-minute default is per package binary, and sqlstore and
+      # grpcstore exceed it under -race: 977 s and 936 s on this runner. 50m
+      # is the budget the Plan 29 record
+      # (docs/superpowers/2026-10-28-plan-29-implementation-record.md) runs
+      # this suite with locally (grpcstore 1160 s there).
+      - run: go test -race -timeout 50m ./...
         env:
           ZA_REQUIRE_NODE: "1"
       - run: CGO_ENABLED=0 go build ./cmd/zeroauthy
@@ -104,7 +109,10 @@ jobs:
           POSTGRES_PASSWORD: zeroauthy
         ports:
           - 55432:5432
+        # Throwaway data on tmpfs, as scripts/test-sql.sh runs it: the suites
+        # make thousands of small transactions and otherwise wait on fsync.
         options: >-
+          --tmpfs /var/lib/postgresql/data
           --health-cmd "pg_isready -h 127.0.0.1 -U postgres"
           --health-interval 5s
           --health-timeout 5s
@@ -116,6 +124,7 @@ jobs:
         ports:
           - 53306:3306
         options: >-
+          --tmpfs /var/lib/mysql
           --health-cmd "mysqladmin ping -h 127.0.0.1 -pzeroauthy --silent"
           --health-interval 5s
           --health-timeout 5s
@@ -125,7 +134,11 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - run: go test -race -count=1 ./internal/store/sqlstore/...
+      # Three dialects in one package binary. Measured here, 30m ran out with
+      # SQLite and PostgreSQL done and MySQL 7 minutes in, before the data
+      # moved to tmpfs. Service containers take no command override, so
+      # test-sql.sh's fsync=off server flags are not available here.
+      - run: go test -race -count=1 -timeout 60m ./internal/store/sqlstore/...
         env:
           ZA_TEST_POSTGRES_DSN: postgres://postgres:zeroauthy@127.0.0.1:55432/postgres?sslmode=disable
           ZA_TEST_MYSQL_DSN: mysql://root:zeroauthy@127.0.0.1:53306/
