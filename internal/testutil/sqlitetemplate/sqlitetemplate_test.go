@@ -11,25 +11,29 @@ import (
 	"testing"
 )
 
-// fatalRecorder is a testing.TB whose Fatal records the message and ends
-// the calling goroutine, as the real one does, so a failing CopyTo can be
-// observed through the public API.
+// fatalRecorder wraps the calling test so a failing CopyTo can be observed
+// through the public API: Fatal and Fatalf record the message and end the
+// calling goroutine, as the real ones do, without failing the real test.
+// Every other method reaches the real test.
 type fatalRecorder struct {
 	testing.TB
 	msg string
 }
-
-func (r *fatalRecorder) Helper() {}
 
 func (r *fatalRecorder) Fatal(args ...any) {
 	r.msg = fmt.Sprint(args...)
 	runtime.Goexit()
 }
 
+func (r *fatalRecorder) Fatalf(format string, args ...any) {
+	r.msg = fmt.Sprintf(format, args...)
+	runtime.Goexit()
+}
+
 // copyFails runs CopyTo on its own goroutine and returns what it failed
 // with ("" if it did not).
-func copyFails(tp *Template, dst string) string {
-	r := &fatalRecorder{}
+func copyFails(t *testing.T, tp *Template, dst string) string {
+	r := &fatalRecorder{TB: t}
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
@@ -93,7 +97,7 @@ func TestAFailedMigrationFailsEveryCaller(t *testing.T) {
 	})
 	defer tp.Remove()
 	for i := range 2 {
-		if msg := copyFails(tp, filepath.Join(t.TempDir(), "z.db")); !strings.Contains(msg, "boom") {
+		if msg := copyFails(t, tp, filepath.Join(t.TempDir(), "z.db")); !strings.Contains(msg, "boom") {
 			t.Fatalf("caller %d failed with %q, want the migration error", i+1, msg)
 		}
 	}
@@ -112,7 +116,7 @@ func TestALogLeftWithContentIsRefused(t *testing.T) {
 	})
 	defer tp.Remove()
 	dst := filepath.Join(t.TempDir(), "z.db")
-	if msg := copyFails(tp, dst); !strings.Contains(msg, "-wal still holds") {
+	if msg := copyFails(t, tp, dst); !strings.Contains(msg, "-wal still holds") {
 		t.Fatalf("CopyTo failed with %q, want the WAL refusal", msg)
 	}
 	if _, err := os.Stat(dst); !errors.Is(err, os.ErrNotExist) {
@@ -129,7 +133,7 @@ func TestAnEmptyLogIsAccepted(t *testing.T) {
 		return os.WriteFile(path+"-wal", nil, 0o600)
 	})
 	defer tp.Remove()
-	if msg := copyFails(tp, filepath.Join(t.TempDir(), "z.db")); msg != "" {
+	if msg := copyFails(t, tp, filepath.Join(t.TempDir(), "z.db")); msg != "" {
 		t.Fatalf("CopyTo failed with %q, want a copy", msg)
 	}
 }
