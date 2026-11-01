@@ -136,6 +136,7 @@ func TestEmailGRPCCodecRoundTrip(t *testing.T) {
 func TestEmailGRPCConcurrentSQLiteClaims(t *testing.T) {
 	ctx := context.Background()
 	path := filepath.Join(t.TempDir(), "grpc-email-concurrent.db")
+	sqliteTemplate.CopyTo(t, path)
 	sqlst, err := sqlstore.Open(ctx, "sqlite://"+path)
 	if err != nil {
 		t.Fatal(err)
